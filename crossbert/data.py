@@ -6,7 +6,7 @@ import os
 
 import torch
 from datasets import load_dataset
-from tokenizers import Tokenizer, models, pre_tokenizers, trainers, decoders
+from tokenizers import Tokenizer, decoders, models, pre_tokenizers, trainers
 
 PAD, MASK, UNK, CLS, SEP = "<pad>", "<mask>", "<unk>", "<cls>", "<sep>"
 SPECIAL_TOKENS = [PAD, MASK, UNK, CLS, SEP]
@@ -29,7 +29,9 @@ def load_wikitext_lines(max_chars: int = 30_000_000, split: str = "train") -> li
     return lines
 
 
-def train_tokenizer(lines: list[str], vocab_size: int = 12_000, save_path: str | None = None) -> Tokenizer:
+def train_tokenizer(
+    lines: list[str], vocab_size: int = 12_000, save_path: str | None = None
+) -> Tokenizer:
     tokenizer = Tokenizer(models.BPE(unk_token=UNK))
     tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
     tokenizer.decoder = decoders.ByteLevel()
@@ -51,11 +53,18 @@ def load_or_train_tokenizer(lines: list[str], vocab_size: int = 12_000) -> Token
 def load_cached_tokenizer(vocab_size: int) -> Tokenizer:
     path = os.path.join(CACHE_DIR, f"tokenizer_{vocab_size}.json")
     if not os.path.exists(path):
-        raise FileNotFoundError(f"No cached tokenizer at {path}; run pretrain.py first.")
+        raise FileNotFoundError(
+            f"No cached tokenizer at {path}; run pretrain.py first."
+        )
     return Tokenizer.from_file(path)
 
 
-def encode_sentences(tokenizer: Tokenizer, texts: list[str], max_len: int, text_pairs: list[str] | None = None):
+def encode_sentences(
+    tokenizer: Tokenizer,
+    texts: list[str],
+    max_len: int,
+    text_pairs: list[str] | None = None,
+):
     """Tokenize (optionally sentence-pair, joined by <sep>) and pad/truncate to max_len.
     Returns (input_ids, attention_mask) bool tensors of shape (N, max_len)."""
     pad_id = tokenizer.token_to_id(PAD)
@@ -103,7 +112,9 @@ class MLMBatcher:
         device = seqs.device
 
         perm = torch.argsort(torch.rand(B, S, device=device), dim=1)
-        masked_pos_idx = perm[:, :mask_count]  # (B, mask_count) positions chosen to be masked
+        masked_pos_idx = perm[
+            :, :mask_count
+        ]  # (B, mask_count) positions chosen to be masked
 
         is_masked = torch.zeros(B, S, dtype=torch.bool, device=device)
         is_masked.scatter_(1, masked_pos_idx, True)
